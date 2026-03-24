@@ -1,0 +1,10 @@
+﻿.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.cache
+*.tmp
+*.pdb
+.nuget-packages/
+.dotnet-home/
