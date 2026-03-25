@@ -11,9 +11,9 @@
 ## Português (PT-BR)
 
 ### Tutorial
-1. **Backup:** Primeiro faça backup do seu mod.
 
 RUN **CodeWalker MLO Exporter.exe**
+1. **Backup:** Primeiro faça backup do seu mod.
 2. **Props Addon:** Para props addon, crie um `RPF` com qualquer nome na pasta `mods` e copie o conteúdo do mod addon para dentro dele.
 3. **Inicialização:** Abra a ferramenta e espere ela carregar os arquivos do GTA.
 4. **Abrir YTYP:** Depois que o carregamento terminar, abra o `YTYP` onde está o seu MLO.
