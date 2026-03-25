@@ -16,4 +16,10 @@
     <ProjectReference Include="..\CodeWalker\CodeWalker.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="img\banner.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

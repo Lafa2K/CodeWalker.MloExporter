@@ -31,6 +31,29 @@ namespace CodeWalker.Tools
         public List<string> Errors { get; } = new List<string>();
     }
 
+    public sealed class YtypPropSelectionItem
+    {
+        public string Key { get; set; }
+        public string Label { get; set; }
+        public string MloName { get; set; }
+        public int Index { get; set; }
+        public int ItemCount { get; set; }
+    }
+
+    public sealed class YtypPropSelectionInfo
+    {
+        public int MloCount { get; set; }
+        public List<YtypPropSelectionItem> Rooms { get; } = new List<YtypPropSelectionItem>();
+        public List<YtypPropSelectionItem> EntitySets { get; } = new List<YtypPropSelectionItem>();
+    }
+
+    public sealed class YtypPropExportSelection
+    {
+        public bool ImportAllMlo { get; set; } = true;
+        public HashSet<string> RoomKeys { get; } = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+        public HashSet<string> EntitySetKeys { get; } = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+    }
+
     public sealed class YtypPropExporter
     {
         private Dictionary<uint, RpfFileEntry> drawableEntryIndex;
@@ -103,24 +126,75 @@ namespace CodeWalker.Tools
             return Path.Combine(baseFolder, GetSuggestedOutputFolderName(inputPath));
         }
 
-        public YtypPropExportResult Export(GameFileCache fileCache, string inputPath, string outputFolder, bool includeTextures, Action<YtypPropExportProgress> progress = null, Action<string> status = null, int cacheWaitTimeoutMs = 60000)
+        public YtypPropSelectionInfo LoadSelectionInfo(string inputPath)
+        {
+            ValidateInputPath(inputPath);
+
+            var ytyp = LoadYtypForExport(inputPath);
+            var mlos = ytyp?.AllArchetypes?.OfType<MloArchetype>().ToArray();
+            if ((mlos == null) || (mlos.Length == 0))
+            {
+                throw new Exception("No MLO archetypes were found in this YTYP.");
+            }
+
+            var selectionInfo = new YtypPropSelectionInfo()
+            {
+                MloCount = mlos.Length
+            };
+
+            bool multipleMlos = mlos.Length > 1;
+            foreach (var mlo in mlos)
+            {
+                if (mlo == null)
+                {
+                    continue;
+                }
+
+                var mloName = GetDisplayLabel(mlo.Name, "MLO");
+
+                if (mlo.rooms != null)
+                {
+                    for (int i = 0; i < mlo.rooms.Length; i++)
+                    {
+                        var room = mlo.rooms[i];
+                        selectionInfo.Rooms.Add(new YtypPropSelectionItem()
+                        {
+                            Key = BuildRoomKey(mlo, i),
+                            Label = BuildRoomLabel(mloName, room, i, multipleMlos),
+                            MloName = mloName,
+                            Index = i,
+                            ItemCount = room?.AttachedObjects?.Length ?? 0
+                        });
+                    }
+                }
+
+                if (mlo.entitySets != null)
+                {
+                    for (int i = 0; i < mlo.entitySets.Length; i++)
+                    {
+                        var entitySet = mlo.entitySets[i];
+                        selectionInfo.EntitySets.Add(new YtypPropSelectionItem()
+                        {
+                            Key = BuildEntitySetKey(mlo, i),
+                            Label = BuildEntitySetLabel(mloName, entitySet, i, multipleMlos),
+                            MloName = mloName,
+                            Index = i,
+                            ItemCount = entitySet?.Entities?.Length ?? 0
+                        });
+                    }
+                }
+            }
+
+            return selectionInfo;
+        }
+
+        public YtypPropExportResult Export(GameFileCache fileCache, string inputPath, string outputFolder, bool includeTextures, YtypPropExportSelection selection = null, Action<YtypPropExportProgress> progress = null, Action<string> status = null, int cacheWaitTimeoutMs = 60000)
         {
             if (fileCache == null)
             {
                 throw new ArgumentNullException(nameof(fileCache));
             }
-            if (string.IsNullOrWhiteSpace(inputPath))
-            {
-                throw new ArgumentException("Input path is required.", nameof(inputPath));
-            }
-            if (!File.Exists(inputPath))
-            {
-                throw new FileNotFoundException("The selected YTYP file could not be found.", inputPath);
-            }
-            if (!SupportsInputPath(inputPath))
-            {
-                throw new InvalidOperationException("Only .ytyp and .ytyp.xml inputs are supported.");
-            }
+            ValidateInputPath(inputPath);
 
             Directory.CreateDirectory(outputFolder);
             ResetRuntimeCaches();
@@ -146,11 +220,17 @@ namespace CodeWalker.Tools
 
             foreach (var mlo in mlos)
             {
-                AddYtypPropTargets(mlo.entities, localArchetypes, fileCache, targets, result);
+                AddYtypPropTargets(GetSelectedMloEntities(mlo, selection), localArchetypes, fileCache, targets, result);
                 if (mlo.entitySets != null)
                 {
-                    foreach (var entitySet in mlo.entitySets)
+                    for (int i = 0; i < mlo.entitySets.Length; i++)
                     {
+                        if (!ShouldExportEntitySet(mlo, i, selection))
+                        {
+                            continue;
+                        }
+
+                        var entitySet = mlo.entitySets[i];
                         AddYtypPropTargets(entitySet?.Entities, localArchetypes, fileCache, targets, result);
                     }
                 }
@@ -159,7 +239,7 @@ namespace CodeWalker.Tools
             result.TotalTargets = targets.Count;
             if (targets.Count == 0)
             {
-                throw new Exception("No prop resource files were found for this YTYP.");
+                throw new Exception("No prop resource files were found for the selected rooms or entity sets.");
             }
 
             ReportProgress(status, progress, "Found " + targets.Count.ToString() + " prop files to export.", 0, targets.Count);
@@ -227,6 +307,22 @@ namespace CodeWalker.Tools
                 Current = current,
                 Total = total
             });
+        }
+
+        private void ValidateInputPath(string inputPath)
+        {
+            if (string.IsNullOrWhiteSpace(inputPath))
+            {
+                throw new ArgumentException("Input path is required.", nameof(inputPath));
+            }
+            if (!File.Exists(inputPath))
+            {
+                throw new FileNotFoundException("The selected YTYP file could not be found.", inputPath);
+            }
+            if (!SupportsInputPath(inputPath))
+            {
+                throw new InvalidOperationException("Only .ytyp and .ytyp.xml inputs are supported.");
+            }
         }
 
         private GameFileCache WaitForFileCacheReady(GameFileCache fileCache, int timeoutMs)
@@ -329,6 +425,68 @@ namespace CodeWalker.Tools
             }
 
             return lookup;
+        }
+
+        private IEnumerable<MCEntityDef> GetSelectedMloEntities(MloArchetype mlo, YtypPropExportSelection selection)
+        {
+            var entities = mlo?.entities;
+            if ((entities == null) || (entities.Length == 0))
+            {
+                return null;
+            }
+
+            if ((selection == null) || selection.ImportAllMlo)
+            {
+                return entities;
+            }
+
+            var selectedEntities = new List<MCEntityDef>();
+            var selectedIndexes = new HashSet<uint>();
+            var rooms = mlo.rooms;
+            if (rooms == null)
+            {
+                return selectedEntities;
+            }
+
+            for (int i = 0; i < rooms.Length; i++)
+            {
+                if (!selection.RoomKeys.Contains(BuildRoomKey(mlo, i)))
+                {
+                    continue;
+                }
+
+                var attachedObjects = rooms[i]?.AttachedObjects;
+                if (attachedObjects == null)
+                {
+                    continue;
+                }
+
+                foreach (var objIndex in attachedObjects)
+                {
+                    if ((objIndex >= entities.Length) || !selectedIndexes.Add(objIndex))
+                    {
+                        continue;
+                    }
+
+                    var entity = entities[objIndex];
+                    if (entity != null)
+                    {
+                        selectedEntities.Add(entity);
+                    }
+                }
+            }
+
+            return selectedEntities;
+        }
+
+        private bool ShouldExportEntitySet(MloArchetype mlo, int entitySetIndex, YtypPropExportSelection selection)
+        {
+            if (selection == null)
+            {
+                return true;
+            }
+
+            return selection.EntitySetKeys.Contains(BuildEntitySetKey(mlo, entitySetIndex));
         }
 
         private void AddYtypPropTargets(IEnumerable<MCEntityDef> entities, Dictionary<uint, Archetype> localArchetypes, GameFileCache fileCache, Dictionary<string, ExportTarget> targets, YtypPropExportResult result)
@@ -1170,6 +1328,37 @@ namespace CodeWalker.Tools
                 }
             }
             return texture;
+        }
+
+        private static string BuildRoomKey(MloArchetype mlo, int roomIndex)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "room:{0:X8}:{1}", mlo?.Hash ?? 0, roomIndex);
+        }
+
+        private static string BuildEntitySetKey(MloArchetype mlo, int entitySetIndex)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "entityset:{0:X8}:{1}", mlo?.Hash ?? 0, entitySetIndex);
+        }
+
+        private string BuildRoomLabel(string mloName, MCMloRoomDef room, int roomIndex, bool includeMloName)
+        {
+            var roomName = GetDisplayLabel(room?.RoomName, "Room " + roomIndex.ToString(CultureInfo.InvariantCulture));
+            var objectCount = room?.AttachedObjects?.Length ?? 0;
+            var label = roomName + " (" + objectCount.ToString(CultureInfo.InvariantCulture) + ")";
+            return includeMloName ? (mloName + " - " + label) : label;
+        }
+
+        private string BuildEntitySetLabel(string mloName, MCMloEntitySet entitySet, int entitySetIndex, bool includeMloName)
+        {
+            var entitySetName = GetDisplayLabel(entitySet?.Name, "Entity Set " + entitySetIndex.ToString(CultureInfo.InvariantCulture));
+            var objectCount = entitySet?.Entities?.Length ?? 0;
+            var label = entitySetName + " (" + objectCount.ToString(CultureInfo.InvariantCulture) + ")";
+            return includeMloName ? (mloName + " - " + label) : label;
+        }
+
+        private string GetDisplayLabel(string value, string fallback)
+        {
+            return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         }
     }
 }
