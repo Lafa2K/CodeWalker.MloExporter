@@ -10,6 +10,8 @@
 
 ## Português (PT-BR)
 
+**Sempre atualize a pasta MODS com props addon antes de abrir aplicação, para ela rodar o cache corretamente**
+
 ### Tutorial
 
 RUN **CodeWalker MLO Exporter.exe**
@@ -28,6 +30,8 @@ RUN **CodeWalker MLO Exporter.exe**
 ---
 
 ## English (EN)
+
+**Always update the MODS folder with props addon before opening the application, so that it runs the cache correctly.**
 
 ### Tutorial
 1. **Backup:** First, back up your mod.
