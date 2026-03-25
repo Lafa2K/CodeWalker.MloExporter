@@ -1,4 +1,4 @@
-# CodeWalker MLO Exporter
+# CodeWalker MLO Exporter (NEED MORE TESTE just Backup)
 **Source Code:** DEXYFEX https://github.com/dexyfex/CodeWalker
 **support:** Codex
 
@@ -11,6 +11,8 @@
 ## Português (PT-BR)
 
 ### Tutorial
+
+RUN **CodeWalker MLO Exporter.exe**
 1. **Backup:** Primeiro faça backup do seu mod.
 2. **Props Addon:** Para props addon, crie um `RPF` com qualquer nome na pasta `mods` e copie o conteúdo do mod addon para dentro dele.
 3. **Inicialização:** Abra a ferramenta e espere ela carregar os arquivos do GTA.
@@ -29,11 +31,12 @@
 
 ### Tutorial
 1. **Backup:** First, back up your mod.
-2. **Addon Props:** For addon props, create an `RPF` with any name in the `mods` folder and copy the addon mod content into it.
-3. **Launch:** Open the tool and wait for it to finish loading the GTA files.
-4. **Open YTYP:** Once the loading is complete, open the `YTYP` where your MLO is located.
-5. **Formats:** You don't need to convert to XML, although the tool can also open `*.ytyp.xml`.
-6. **Output:** The tool will create a folder with the exported files in the same folder where the `YTYP` is located.
+2. RUN **CodeWalker MLO Exporter.exe**
+3. **Addon Props:** For addon props, create an `RPF` with any name in the `mods` folder and copy the addon mod content into it.
+4. **Launch:** Open the tool and wait for it to finish loading the GTA files.
+5. **Open YTYP:** Once the loading is complete, open the `YTYP` where your MLO is located.
+6. **Formats:** You don't need to convert to XML, although the tool can also open `*.ytyp.xml`.
+7. **Output:** The tool will create a folder with the exported files in the same folder where the `YTYP` is located.
 
 ### Notes
 * In some cases, the first load may take a while, especially when there are addon props.
